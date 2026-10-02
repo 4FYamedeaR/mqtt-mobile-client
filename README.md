@@ -30,7 +30,7 @@
 
 ## 应用截图
 
-首页示例（截图中的 Broker 地址已替换为示例地址，不包含真实 IP）：
+首页示例：
 
 <p align="center">
   <img src="docs/screenshots/app-home.png" alt="MQTT Mobile Client 应用首页" width="360">
