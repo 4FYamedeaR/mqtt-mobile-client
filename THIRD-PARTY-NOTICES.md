@@ -22,26 +22,3 @@
 
 Apache-2.0 的许可证文本见 [LICENSE](LICENSE)。MIT-0 的文本见 [licenses/MIT-0.txt](licenses/MIT-0.txt)。
 
-## 仅测试、调试或构建使用的依赖
-
-这些组件不进入正式 release APK，但在分发源码或开发环境时仍应保留其许可证信息：
-
-| 组件 | 当前版本/范围 | 许可证 | 上游项目 |
-| --- | --- | --- | --- |
-| JUnit | 4.13.2，`testImplementation` | EPL-1.0 | [junit-team/junit4](https://github.com/junit-team/junit4) |
-| `org.json:json` | 20240303，`testImplementation` | Public Domain | [stleary/JSON-java](https://github.com/stleary/JSON-java) |
-| Kotlin Test | 2.2.21，`testImplementation` | Apache-2.0 | [JetBrains/kotlin](https://github.com/JetBrains/kotlin) |
-| Compose UI Tooling | 1.7.6，`debugImplementation` | Apache-2.0 | [androidx/androidx](https://github.com/androidx/androidx) |
-| Room Compiler | 2.8.5，`kapt` | Apache-2.0 | [androidx/androidx](https://github.com/androidx/androidx) |
-| Gradle Wrapper、Android/Kotlin 构建插件 | 构建工具，不随 APK 分发 | 依各自上游许可证 | [Gradle](https://github.com/gradle/gradle)、[Kotlin](https://github.com/JetBrains/kotlin) |
-
-EPL-1.0 文本见 [licenses/EPL-1.0.txt](licenses/EPL-1.0.txt)。`org.json` 的许可证声明见 [licenses/JSON-java-LICENSE.txt](licenses/JSON-java-LICENSE.txt) 及其上游 [LICENSE](https://github.com/stleary/JSON-java/blob/master/LICENSE)。
-
-## 分发注意事项
-
-1. 发布 APK 或其他二进制分发物时，应同时提供本文件和根目录 `LICENSE`，并保留第三方版权、许可证和 NOTICE 信息。
-2. 本仓库的 `signing/`、`local.properties`、构建输出和临时目录不得提交。签名私钥和密码配置不能公开。
-3. `ic_launcher_art.png` 是单独的图像素材；项目许可证不代表对该图片、其中可能包含的标识或参考素材授予额外权利。
-4. 第三方项目名称、Logo 和商标不表示本项目获得其官方背书。
-
-本清单是基于当前工程依赖树的工程记录，不替代目标市场的法律审查。
