@@ -1,0 +1,25 @@
+*.iml
+.gradle/
+local.properties
+/.idea/
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+app/build/
+.tmp/
+
+/signing/
+
+# Private signing material and certificate/key files
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Local scratch directories outside the Android source tree
+/%SystemDrive%/
+/com/
+
