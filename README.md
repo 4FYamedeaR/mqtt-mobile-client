@@ -32,9 +32,7 @@
 
 首页示例：
 
-<p align="center">
-  <img src="docs/screenshots/app-home.png" alt="MQTT Mobile Client 应用首页" width="360">
-</p>
+![MQTT Mobile Client 应用首页](docs/screenshots/app-home.png)
 
 ## 打开和运行
 
