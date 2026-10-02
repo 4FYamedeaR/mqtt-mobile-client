@@ -28,6 +28,14 @@
 - `:app:lintDebug` 已通过，通知权限和应用图标配置完整
 - 多 Broker 重连使用连接代次隔离旧客户端回调，避免快速编辑/重连时覆盖新状态
 
+## 应用截图
+
+首页示例（截图中的 Broker 地址已替换为示例地址，不包含真实 IP）：
+
+<p align="center">
+  <img src="docs/screenshots/app-home.png" alt="MQTT Mobile Client 应用首页" width="360">
+</p>
+
 ## 打开和运行
 
 使用 Android Studio 打开本目录，等待 Gradle 同步后运行 `app`。工程要求：
@@ -54,4 +62,5 @@ Android SDK 路径通过未纳入版本控制的 `local.properties` 配置；请
 ## 许可证
 
 本项目源代码默认使用 Apache License 2.0，详见 [LICENSE](LICENSE)。第三方依赖及其许可证见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+
 
