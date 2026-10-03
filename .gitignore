@@ -19,6 +19,15 @@ app/build/
 *.pem
 *.key
 
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+**/*credentials*.json
+**/*secret*.json
+**/*secrets*.json
+**/service-account*.json
+
 # Local scratch directories outside the Android source tree
 /%SystemDrive%/
 /com/
