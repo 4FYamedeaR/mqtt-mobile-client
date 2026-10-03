@@ -72,8 +72,6 @@ import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -109,6 +107,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.onFocusChanged
@@ -120,6 +119,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -409,7 +409,10 @@ private fun HomeScreen(
 ) {
     var profileSearch by rememberSaveable { mutableStateOf("") }
     var topBarMenuExpanded by rememberSaveable { mutableStateOf(false) }
-    val isCompactTopBar = LocalConfiguration.current.screenWidthDp < 400
+    val configuration = LocalConfiguration.current
+    val isCompactTopBar = configuration.screenWidthDp < 400 || configuration.screenHeightDp < 800
+    val isNarrow = configuration.screenWidthDp < 360 || configuration.screenHeightDp < 700
+    val onlineCount = connectionStatuses.values.count { it == ConnectionStatus.CONNECTED }
     val visibleProfiles = profiles.filter { profile ->
         profileSearch.isBlank() ||
             profile.name.contains(profileSearch, ignoreCase = true) ||
@@ -417,83 +420,107 @@ private fun HomeScreen(
     }
     Scaffold(
         modifier = modifier,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "MQTT 移动客户端",
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BrandMark()
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text("MQTT", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("FIELD CONSOLE", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.3.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 },
                 actions = {
                     if (isCompactTopBar) {
                         Box {
                             IconButton(onClick = { topBarMenuExpanded = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                                Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
                             }
-                            DropdownMenu(
-                                expanded = topBarMenuExpanded,
-                                onDismissRequest = { topBarMenuExpanded = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("导入") },
-                                    onClick = {
-                                        topBarMenuExpanded = false
-                                        onImport()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("导出") },
-                                    onClick = {
-                                        topBarMenuExpanded = false
-                                        onExport()
-                                    }
-                                )
+                            DropdownMenu(expanded = topBarMenuExpanded, onDismissRequest = { topBarMenuExpanded = false }) {
+                                DropdownMenuItem(text = { Text("新建连接") }, leadingIcon = { Icon(Icons.Default.Add, null) }, onClick = { topBarMenuExpanded = false; onCreate() })
+                                DropdownMenuItem(text = { Text("导入配置") }, leadingIcon = { Icon(Icons.Default.Add, null) }, onClick = { topBarMenuExpanded = false; onImport() })
+                                DropdownMenuItem(text = { Text("导出配置") }, leadingIcon = { Icon(Icons.Default.Link, null) }, onClick = { topBarMenuExpanded = false; onExport() })
+                                DropdownMenuItem(text = { Text("设置") }, leadingIcon = { Icon(Icons.Default.Settings, null) }, onClick = { topBarMenuExpanded = false; onSettings() })
+                                DropdownMenuItem(text = { Text("保活设置") }, leadingIcon = { Icon(Icons.Default.BatteryFull, null) }, onClick = { topBarMenuExpanded = false; onKeepAliveSettings() })
                             }
                         }
                     } else {
-                        TextButton(onClick = onImport) {
-                            Text("导入", maxLines = 1, softWrap = false)
+                        Box {
+                            IconButton(onClick = { topBarMenuExpanded = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "导入、导出与更多操作")
+                            }
+                            DropdownMenu(expanded = topBarMenuExpanded, onDismissRequest = { topBarMenuExpanded = false }) {
+                                DropdownMenuItem(text = { Text("导入配置") }, leadingIcon = { Icon(Icons.Default.Add, null) }, onClick = { topBarMenuExpanded = false; onImport() })
+                                DropdownMenuItem(text = { Text("导出配置") }, leadingIcon = { Icon(Icons.Default.Link, null) }, onClick = { topBarMenuExpanded = false; onExport() })
+                            }
                         }
-                        TextButton(onClick = onExport) {
-                            Text("导出", maxLines = 1, softWrap = false)
-                        }
-                    }
-                    IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "设置") }
-                    IconButton(onClick = onKeepAliveSettings) {
-                        Icon(Icons.Default.BatteryFull, "保活设置")
+                        IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "设置") }
+                        IconButton(onClick = onKeepAliveSettings) { Icon(Icons.Default.BatteryFull, "保活设置") }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = MaterialTheme.colorScheme.surface)
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreate) {
-                Icon(Icons.Default.Add, "新建连接")
+            if (!isCompactTopBar) {
+                FloatingActionButton(
+                    onClick = onCreate,
+                    shape = RoundedCornerShape(18.dp),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.Add, "新建连接")
+                }
             }
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(18.dp, padding.calculateTopPadding() + 10.dp, 18.dp, 104.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("最近连接", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(4.dp))
-                Text("选择一个 Broker 配置开始查看实时消息", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(12.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f), Color.Transparent)))
+                            .padding(22.dp)
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 12.dp else 24.dp)) {
+                            MetricItem("配置", profiles.size.toString())
+                            MetricItem("在线", onlineCount.toString(), accent = onlineCount > 0)
+                            MetricItem("协议", "MQTT 3/5")
+                        }
+                    }
+                }
+            }
+            item {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Column(Modifier.weight(1f)) {
+                        Text("连接配置", style = MaterialTheme.typography.headlineSmall)
+                        Text("选择一个 Broker 开始查看实时消息", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("${visibleProfiles.size} 个", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            item {
                 OutlinedTextField(
                     value = profileSearch,
                     onValueChange = { profileSearch = it },
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     placeholder = { Text("搜索配置名称或 Host") },
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(17.dp)
                 )
             }
             if (profiles.isEmpty()) {
@@ -535,40 +562,44 @@ private fun ProfileCard(
     onDelete: (BrokerProfile) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Card(
+    val connected = isActive && connectionStatus == ConnectionStatus.CONNECTED
+    val borderColor = if (connected) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
     ) {
-        Column(Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Link, null, tint = MaterialTheme.colorScheme.primary) }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(profile.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("${profile.host}:${profile.port}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Default.MoreVert, "更多") }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(text = { Text("编辑") }, onClick = { menuExpanded = false; onEdit(profile) }, leadingIcon = { Icon(Icons.Default.Edit, null) })
-                        DropdownMenuItem(text = { Text("删除") }, onClick = { menuExpanded = false; onDelete(profile) }, leadingIcon = { Icon(Icons.Default.Delete, null) })
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(4.dp).height(92.dp).clip(RoundedCornerShape(4.dp)).background(if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)))
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Link, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(profile.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${profile.host}:${profile.port}", style = MaterialTheme.typography.bodySmall, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Default.MoreVert, "编辑或删除") }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("编辑") }, onClick = { menuExpanded = false; onEdit(profile) }, leadingIcon = { Icon(Icons.Default.Edit, null) })
+                            DropdownMenuItem(text = { Text("删除") }, onClick = { menuExpanded = false; onDelete(profile) }, leadingIcon = { Icon(Icons.Default.Delete, null) })
+                        }
                     }
                 }
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                SmallTag(profile.mqttVersion.label)
-                SmallTag(if (profile.tlsEnabled) "TLS" else "TCP")
-                if (isActive) SmallTag(connectionStatus.label, MaterialTheme.colorScheme.primaryContainer)
-                Spacer(Modifier.weight(1f))
-                Button(onClick = { onConnect(profile) }) {
-                    Icon(Icons.Default.Wifi, null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (isActive && connectionStatus == ConnectionStatus.CONNECTED) "查看" else "连接")
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SmallTag(profile.mqttVersion.label)
+                    SmallTag(if (profile.tlsEnabled) "TLS" else "TCP", if (profile.tlsEnabled) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                    if (isActive) StatusPill(connectionStatus)
+                }
+                Button(onClick = { onConnect(profile) }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(13.dp), contentPadding = PaddingValues(horizontal = 14.dp)) {
+                    Icon(if (connected) Icons.Default.Wifi else Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text(if (connected) "进入工作区" else "连接 Broker")
                 }
             }
         }
@@ -642,18 +673,29 @@ private fun ProfileEditorScreen(
 
     Scaffold(
         modifier = modifier,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(if (initialProfile == null) "新建连接" else "编辑连接") },
+                title = {
+                    Column {
+                        Text(if (initialProfile == null) "新建连接" else "编辑连接", style = MaterialTheme.typography.titleLarge)
+                        Text("BROKER PROFILE", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回") } },
-                actions = { TextButton(onClick = { onSave(currentProfile(), password, clientPrivateKeyPem) }) { Text("保存") } }
+                actions = {
+                    TextButton(onClick = { onSave(currentProfile(), password, clientPrivateKeyPem) }) { Text("保存") }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp).navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 10.dp).navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            Text("建立一条可靠的现场通道", style = MaterialTheme.typography.headlineSmall)
+            Text("保存后可随时连接、订阅或发布测试消息。", color = MaterialTheme.colorScheme.onSurfaceVariant)
             SectionTitle("Broker", "连接地址与协议")
             OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text("配置名称") }, singleLine = true)
             OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), label = { Text("Host") }, placeholder = { Text("broker.example.com") }, singleLine = true)
@@ -733,12 +775,13 @@ private fun WorkspaceScreen(
     val tabs = listOf("消息", "订阅", "发布", "日志")
     Scaffold(
         modifier = modifier,
+        containerColor = Color.Transparent,
         topBar = {
             Column {
                 TopAppBar(
                     title = {
                         Column {
-                            Text(state.activeProfile?.name ?: "MQTT 工作区", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(state.activeProfile?.name ?: "MQTT 工作区", maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 StatusDot(state.connectionStatus)
                                 Spacer(Modifier.width(6.dp))
@@ -747,7 +790,10 @@ private fun WorkspaceScreen(
                                     transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
                                     label = "connection-status-label"
                                 ) { status ->
-                                    Text(status.label, style = MaterialTheme.typography.labelSmall)
+                                    Text(status.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                state.activeProfile?.let { profile ->
+                                    Text(" · ${profile.host}:${profile.port}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -759,31 +805,41 @@ private fun WorkspaceScreen(
                         } else {
                             IconButton(onClick = onReconnect) { Icon(Icons.Default.Refresh, "重连") }
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.primary
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    divider = {}
                 ) {
                     tabs.forEachIndexed { index, label -> Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text(label) }) }
                 }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 9.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("订阅 ${state.subscriptions.size}", style = MaterialTheme.typography.labelSmall)
-                    Text("消息 ${state.messages.size}/${state.messageLimit}", style = MaterialTheme.typography.labelSmall)
-                    Text("接收 ${state.messages.count { it.direction == MessageDirection.RECEIVED }}", style = MaterialTheme.typography.labelSmall)
-                    Text("发布 ${state.messages.count { it.direction == MessageDirection.PUBLISHED }}", style = MaterialTheme.typography.labelSmall)
+                    WorkspaceMetric("订阅", state.subscriptions.size.toString())
+                    WorkspaceMetric("消息", "${state.messages.size}/${state.messageLimit}")
+                    WorkspaceMetric("接收", state.messages.count { it.direction == MessageDirection.RECEIVED }.toString())
+                    WorkspaceMetric("发布", state.messages.count { it.direction == MessageDirection.PUBLISHED }.toString())
                 }
                 val lastConnection = state.logs.firstOrNull { it.message.startsWith("连接成功") }
                 val lastError = state.logs.firstOrNull { it.level == LogLevel.ERROR }
                 if (lastConnection != null || lastError != null) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)) {
-                        lastConnection?.let { Text("最近连接：${formatTime(it.createdAt)}", style = MaterialTheme.typography.labelSmall) }
-                        lastError?.let { Text("最近错误：${it.message}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (lastError == null) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+                    ) {
+                        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            StatusDot(if (lastError == null) ConnectionStatus.CONNECTED else ConnectionStatus.FAILED)
+                            Spacer(Modifier.width(8.dp))
+                            lastConnection?.let { Text("最近连接 ${formatTime(it.createdAt)}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f)) }
+                            lastError?.let { Text(it.message, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)) }
+                        }
                     }
                 }
             }
@@ -906,7 +962,7 @@ private fun MessagesTab(
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索消息") },
                         placeholder = { Text(if (state.subscriptionTopicFilter == null) "按 Topic / Payload 筛选" else "当前订阅筛选中") },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(16.dp)
                     )
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -964,7 +1020,7 @@ private fun MessagesTab(
                     FilterChip(selected = state.directionFilter == MessageDirection.PUBLISHED, onClick = { onDirectionChanged(MessageDirection.PUBLISHED) }, label = { Text("已发布") })
                     FilterChip(selected = state.jsonOnly, onClick = { onJsonOnlyChanged(!state.jsonOnly) }, label = { Text("仅 JSON") })
                 }
-                HorizontalDivider(Modifier.padding(top = 4.dp))
+                HorizontalDivider(Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
                 if (state.visibleMessages.isEmpty()) {
                     EmptyState(Icons.Default.BugReport, "暂无消息", "连接并订阅 Topic 后，收到的消息会显示在这里。", null, {})
                 } else {
@@ -1013,18 +1069,28 @@ private fun MessageCard(
             scaleIn(initialScale = 0.985f, animationSpec = tween(280, delayMillis = entranceDelayMillis)),
         exit = fadeOut(tween(160)) + scaleOut(targetScale = 0.985f, animationSpec = tween(160))
     ) {
-        OutlinedCard(modifier = Modifier.fillMaxWidth().clickable { onOpen(message) }) {
-            Column(Modifier.padding(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SmallTag(message.direction.label, if (message.direction == MessageDirection.RECEIVED) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer)
-                    Spacer(Modifier.width(8.dp))
-                    Text(message.topic, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(formatTime(message.receivedAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Surface(
+            modifier = Modifier.fillMaxWidth().clickable(onClickLabel = "查看消息详情") { onOpen(message) },
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+        ) {
+            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(3.dp).height(62.dp).clip(RoundedCornerShape(3.dp)).background(if (message.direction == MessageDirection.RECEIVED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SmallTag(message.direction.label, if (message.direction == MessageDirection.RECEIVED) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer)
+                        Spacer(Modifier.width(8.dp))
+                        Text(message.topic, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text(PayloadFormatter.summary(message.payload), maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { SmallTag("QoS ${message.qos}"); if (message.retain) SmallTag("Retain", MaterialTheme.colorScheme.tertiaryContainer) }
+                        Spacer(Modifier.weight(1f))
+                        Text(formatTime(message.receivedAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                Spacer(Modifier.height(7.dp))
-                Text(PayloadFormatter.summary(message.payload), maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(7.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { SmallTag("QoS ${message.qos}"); if (message.retain) SmallTag("Retain") }
             }
         }
     }
@@ -1351,27 +1417,37 @@ private fun SubscriptionsTab(
     var retainAsPublished by rememberSaveable { mutableStateOf(false) }
     var retainHandling by rememberSaveable { mutableIntStateOf(0) }
     var editingSubscription by remember { mutableStateOf<Subscription?>(null) }
-    Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("订阅管理", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Column(modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text("订阅管理", style = MaterialTheme.typography.headlineSmall)
+                Text("监听你关心的 Topic Filter", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            SmallTag("${state.subscriptions.size} 个", MaterialTheme.colorScheme.primaryContainer)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(topic, { topic = it }, Modifier.weight(1f), label = { Text("Topic Filter") }, placeholder = { Text("device/+/report") }, singleLine = true)
+            OutlinedTextField(topic, { topic = it }, Modifier.weight(1f), label = { Text("Topic Filter") }, placeholder = { Text("device/+/report") }, singleLine = true, shape = RoundedCornerShape(16.dp))
             ChoiceField("QoS", qos.toString(), (0..2).toList(), Int::toString, { qos = it })
         }
         if (state.activeProfile?.mqttVersion == MqttVersion.MQTT_5) {
-            Text("MQTT 5 高级订阅选项", style = MaterialTheme.typography.labelLarge)
-            ToggleRow("No Local", "不接收此客户端自己发布的消息", noLocal) { noLocal = it }
-            ToggleRow("Retain As Published", "保留 Broker 返回的 Retain 标志", retainAsPublished) { retainAsPublished = it }
-            ChoiceField(
-                "Retain Handling",
-                when (retainHandling) {
-                    1 -> "仅首次订阅发送 Retained"
-                    2 -> "不发送 Retained"
-                    else -> "始终发送 Retained"
-                },
-                listOf(0, 1, 2),
-                { value -> when (value) { 1 -> "仅首次订阅发送 Retained"; 2 -> "不发送 Retained"; else -> "始终发送 Retained" } },
-                { retainHandling = it }
-            )
+            Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("MQTT 5 高级订阅选项", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    ToggleRow("No Local", "不接收此客户端自己发布的消息", noLocal) { noLocal = it }
+                    ToggleRow("Retain As Published", "保留 Broker 返回的 Retain 标志", retainAsPublished) { retainAsPublished = it }
+                    ChoiceField(
+                        "Retain Handling",
+                        when (retainHandling) {
+                            1 -> "仅首次订阅发送 Retained"
+                            2 -> "不发送 Retained"
+                            else -> "始终发送 Retained"
+                        },
+                        listOf(0, 1, 2),
+                        { value -> when (value) { 1 -> "仅首次订阅发送 Retained"; 2 -> "不发送 Retained"; else -> "始终发送 Retained" } },
+                        { retainHandling = it }
+                    )
+                }
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(
@@ -1386,7 +1462,8 @@ private fun SubscriptionsTab(
                     editingSubscription = null
                 },
                 modifier = Modifier.weight(1f),
-                enabled = topic.isNotBlank()
+                enabled = topic.isNotBlank(),
+                shape = RoundedCornerShape(14.dp)
             ) { Icon(Icons.Default.Subscriptions, null); Spacer(Modifier.width(8.dp)); Text(if (editingSubscription == null) "添加订阅" else "保存修改") }
             if (editingSubscription != null) {
                 OutlinedButton(onClick = { editingSubscription = null; topic = ""; qos = 0; noLocal = false; retainAsPublished = false; retainHandling = 0 }) { Text("取消") }
@@ -1397,11 +1474,18 @@ private fun SubscriptionsTab(
             EmptyState(Icons.Default.Subscriptions, "暂无订阅", "添加 Topic Filter 后即可接收消息。", null, {})
         } else {
             state.subscriptions.forEach { subscription ->
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth().clickable { onViewMessages(subscription) }
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable(onClickLabel = "查看订阅消息") { onViewMessages(subscription) },
+                    shape = RoundedCornerShape(17.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
                 ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) { Text(subscription.topicFilter, fontWeight = FontWeight.SemiBold); Text("QoS ${subscription.qos}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Subscriptions, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) { Text(subscription.topicFilter, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("QoS ${subscription.qos}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         IconButton(onClick = {
                             editingSubscription = subscription
                             topic = subscription.topicFilter
@@ -1443,17 +1527,30 @@ private fun PublishTab(
             retain = message.retain
         }
     }
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("发布测试消息", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        OutlinedTextField(topic, { topic = it }, Modifier.fillMaxWidth(), label = { Text("Topic") }, placeholder = { Text("device/demo/command") }, singleLine = true)
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                Text("发布测试消息", style = MaterialTheme.typography.headlineSmall)
+                Text("把诊断指令安全地送到 Broker", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            SmallTag("OUTBOUND", MaterialTheme.colorScheme.tertiaryContainer)
+        }
+        OutlinedTextField(topic, { topic = it }, Modifier.fillMaxWidth(), label = { Text("Topic") }, placeholder = { Text("device/demo/command") }, singleLine = true, shape = RoundedCornerShape(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             ChoiceField("Payload 格式", format.label, PayloadFormat.entries.toList(), { it.label }, { format = it })
             ChoiceField("QoS", qos.toString(), (0..2).toList(), Int::toString, { qos = it })
         }
-        OutlinedTextField(payload, { payload = it }, Modifier.fillMaxWidth().height(220.dp), label = { Text("Payload") }, textStyle = androidx.compose.ui.text.TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text("Retain", fontWeight = FontWeight.SemiBold); Text("让 Broker 保存此 Topic 的最后一条消息", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            Switch(checked = retain, onCheckedChange = { retain = it })
+        Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("PAYLOAD", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.primary)
+                OutlinedTextField(payload, { payload = it }, Modifier.fillMaxWidth().height(220.dp), label = { Text("消息内容") }, textStyle = androidx.compose.ui.text.TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), shape = RoundedCornerShape(14.dp))
+            }
+        }
+        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) { Text("Retain", fontWeight = FontWeight.SemiBold); Text("让 Broker 保存此 Topic 的最后一条消息", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Switch(checked = retain, onCheckedChange = { retain = it })
+            }
         }
         if (mqttVersion == MqttVersion.MQTT_5) {
             Text("MQTT 5 消息属性", style = MaterialTheme.typography.labelLarge)
@@ -1463,7 +1560,8 @@ private fun PublishTab(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Message Expiry（秒，可选）") },
                 supportingText = { Text("留空表示不设置，最大 4294967295 秒") },
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
             )
             OutlinedTextField(
                 value = contentType,
@@ -1471,35 +1569,42 @@ private fun PublishTab(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Content Type（可选）") },
                 placeholder = { Text("application/json") },
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
             )
             OutlinedTextField(
                 value = responseTopic,
                 onValueChange = { responseTopic = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Response Topic（可选）") },
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { PayloadFormatter.prettyJson(payload.toByteArray())?.let { payload = it } }, enabled = format == PayloadFormat.JSON) { Text("格式化 JSON") }
             OutlinedButton(onClick = { PayloadFormatter.compactJson(payload)?.let { payload = it } }, enabled = format == PayloadFormat.JSON) { Text("压缩 JSON") }
-            Button(
-                onClick = {
-                    pendingPublish = PublishDraft(
-                        topic = topic,
-                        payload = payload,
-                        format = format,
-                        qos = qos,
-                        retain = retain,
-                        messageExpirySeconds = messageExpiry.toLongOrNull(),
-                        contentType = contentType.trim().ifBlank { null },
-                        responseTopic = responseTopic.trim().ifBlank { null }
-                    )
-                },
-                enabled = topic.isNotBlank(),
-                modifier = Modifier.weight(1f)
-            ) { Icon(Icons.AutoMirrored.Filled.Send, null); Spacer(Modifier.width(8.dp)); Text("发布") }
+        }
+        Button(
+            onClick = {
+                pendingPublish = PublishDraft(
+                    topic = topic,
+                    payload = payload,
+                    format = format,
+                    qos = qos,
+                    retain = retain,
+                    messageExpirySeconds = messageExpiry.toLongOrNull(),
+                    contentType = contentType.trim().ifBlank { null },
+                    responseTopic = responseTopic.trim().ifBlank { null }
+                )
+            },
+            enabled = topic.isNotBlank(),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(15.dp)
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Send, null)
+            Spacer(Modifier.width(8.dp))
+            Text("准备发布")
         }
         if (topic.isNotBlank()) {
             Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
@@ -1603,7 +1708,7 @@ private fun LogsTab(logs: List<ConnectionLog>, profileName: String?, modifier: M
 private fun <T> ChoiceField(label: String, value: String, options: List<T>, text: (T) -> String, onSelected: (T) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { expanded = true }) { Text("$label: $value", maxLines = 1) }
+        OutlinedButton(onClick = { expanded = true }, shape = RoundedCornerShape(13.dp), contentPadding = PaddingValues(horizontal = 13.dp)) { Text("$label: $value", maxLines = 1) }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option -> DropdownMenuItem(text = { Text(text(option)) }, onClick = { expanded = false; onSelected(option) }) }
         }
@@ -1612,7 +1717,7 @@ private fun <T> ChoiceField(label: String, value: String, options: List<T>, text
 
 @Composable
 private fun ToggleRow(label: String, description: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text(label, fontWeight = FontWeight.SemiBold); Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         Switch(checked = checked, onCheckedChange = onChange)
     }
@@ -1641,19 +1746,75 @@ private fun CertificatePickerRow(label: String, selected: Boolean, summary: Cert
 
 @Composable
 private fun SectionTitle(title: String, description: String) {
-    Column(Modifier.padding(top = 8.dp)) { Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold); Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(title.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelSmall, letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.primary)
+        Text(description, style = MaterialTheme.typography.titleMedium)
+    }
 }
 
 @Composable
 private fun SmallTag(text: String, color: Color = MaterialTheme.colorScheme.secondaryContainer) {
-    Surface(shape = RoundedCornerShape(50), color = color) { Text(text, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall) }
+    Surface(shape = RoundedCornerShape(50), color = color) { Text(text, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+}
+
+@Composable
+private fun BrandMark() {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary))),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("MQ", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
+    }
+}
+
+@Composable
+private fun MetricItem(label: String, value: String, accent: Boolean = false) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, style = MaterialTheme.typography.titleLarge, color = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun WorkspaceMetric(label: String, value: String) {
+    Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Row(Modifier.padding(horizontal = 9.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+@Composable
+private fun StatusPill(status: ConnectionStatus) {
+    val container = when (status) {
+        ConnectionStatus.CONNECTED -> MaterialTheme.colorScheme.primaryContainer
+        ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> MaterialTheme.colorScheme.tertiaryContainer
+        ConnectionStatus.FAILED -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val content = when (status) {
+        ConnectionStatus.CONNECTED -> MaterialTheme.colorScheme.onPrimaryContainer
+        ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> MaterialTheme.colorScheme.onTertiaryContainer
+        ConnectionStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(shape = RoundedCornerShape(50), color = container) {
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+            StatusDot(status)
+            Text(status.label, style = MaterialTheme.typography.labelSmall, color = content, maxLines = 1)
+        }
+    }
 }
 
 @Composable
 private fun StatusDot(status: ConnectionStatus) {
     val color = when (status) {
-        ConnectionStatus.CONNECTED -> Color(0xFF2E9B65)
-        ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> Color(0xFFE19A25)
+        ConnectionStatus.CONNECTED -> MaterialTheme.colorScheme.primary
+        ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> MaterialTheme.colorScheme.tertiary
         ConnectionStatus.FAILED -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.outline
     }

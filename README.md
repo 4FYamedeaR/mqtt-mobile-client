@@ -28,6 +28,37 @@
 - `:app:lintDebug` 已通过，通知权限和应用图标配置完整
 - 多 Broker 重连使用连接代次隔离旧客户端回调，避免快速编辑/重连时覆盖新状态
 
+## 界面预览
+
+下面的截图来自最新构建，使用演示数据并隐藏了连接地址、Topic、Payload 和日志字段。图片保留完整手机画布比例，点击图片可以查看原图。
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="docs/screenshots/home.png"><img src="docs/screenshots/home.png" width="270" alt="首页"></a><br />首页
+    </td>
+    <td align="center">
+      <a href="docs/screenshots/new-connection.png"><img src="docs/screenshots/new-connection.png" width="270" alt="新建连接"></a><br />新建连接
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/screenshots/messages.png"><img src="docs/screenshots/messages.png" width="270" alt="消息"></a><br />消息
+    </td>
+    <td align="center">
+      <a href="docs/screenshots/subscriptions.png"><img src="docs/screenshots/subscriptions.png" width="270" alt="订阅"></a><br />订阅
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/screenshots/publish.png"><img src="docs/screenshots/publish.png" width="270" alt="发布"></a><br />发布
+    </td>
+    <td align="center">
+      <a href="docs/screenshots/logs.png"><img src="docs/screenshots/logs.png" width="270" alt="日志"></a><br />日志
+    </td>
+  </tr>
+</table>
+
 ## 打开和运行
 
 使用 Android Studio 打开本目录，等待 Gradle 同步后运行 `app`。工程要求：
